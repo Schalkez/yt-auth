@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tgz
+.env
+.env.*
+!.env.example
+*.log
+vault.json
+vault.enc.json
+master.key
+client_secrets.json
+youtube_token*.json
+coverage/
+.DS_Store
+Thumbs.db
