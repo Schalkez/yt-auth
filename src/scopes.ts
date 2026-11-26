@@ -8,6 +8,7 @@ export const YOUTUBE_SCOPES = {
   upload: "https://www.googleapis.com/auth/youtube.upload",
   forceSsl: "https://www.googleapis.com/auth/youtube.force-ssl",
   partner: "https://www.googleapis.com/auth/youtubepartner",
+  channelMemberships: "https://www.googleapis.com/auth/youtube.channel-memberships.creator",
 } as const;
 
 export const DRIVE_SCOPES = {
@@ -38,6 +39,7 @@ export const SCOPE_PRESETS = {
     YOUTUBE_SCOPES.analyticsReadonly,
     YOUTUBE_SCOPES.analyticsMonetaryReadonly,
     YOUTUBE_SCOPES.partner,
+    YOUTUBE_SCOPES.channelMemberships,
   ],
   "drive-readonly": [DRIVE_SCOPES.readonly],
   "drive-file": [DRIVE_SCOPES.file],

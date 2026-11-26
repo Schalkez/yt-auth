@@ -1,6 +1,6 @@
 {
   "name": "@schalkez/yt-auth",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Centralized multi-channel, multi-profile YouTube & Google Drive OAuth vault, CLI, TypeScript SDK, and read-only MCP server for agent-first workflows.",
   "type": "module",
   "license": "MIT",
