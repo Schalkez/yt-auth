@@ -21,10 +21,10 @@ export interface EncryptedEnvelope {
  *  2. <vaultDir>/master.key (auto-generated on first write with 0600 mode)
  */
 export function resolveMasterKey(vaultDir: string, createIfMissing: boolean): Buffer | null {
-  const envKey = process.env["YT_AUTH_MASTER_KEY"]?.trim();
+  const envKey = (process.env["YT_OPS_MASTER_KEY"] ?? process.env["YT_AUTH_MASTER_KEY"])?.trim();
   if (envKey) {
     if (!/^[0-9a-fA-F]{64}$/.test(envKey)) {
-      throw new Error("YT_AUTH_MASTER_KEY must be a 64-character hex string (32 bytes).");
+      throw new Error("YT_OPS_MASTER_KEY / YT_AUTH_MASTER_KEY must be a 64-character hex string (32 bytes).");
     }
     return Buffer.from(envKey, "hex");
   }

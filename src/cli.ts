@@ -17,8 +17,16 @@ import {
   fetchChannelStats,
   fetchRecentVideos,
   getAccessToken,
+  getYouTubeClient,
   listAccounts,
 } from "./sdk.js";
+import {
+  fetchVideosHealth,
+  getStuckReason,
+  isVideoPlayable,
+  parkUnlistedAndRun,
+  seedCommentWithDedup,
+} from "./release.js";
 import type { ClientType, Permission, Provider } from "./types.js";
 import { VaultStore, toPublicAccount } from "./vault.js";
 
@@ -41,12 +49,12 @@ function openUrlInBrowser(url: string): void {
 const program = new Command();
 
 program
-  .name("yt-auth")
+  .name("yt-ops")
   .description(
-    "Centralized multi-channel YouTube & Google Drive OAuth vault, CLI, SDK, and read-only MCP server.",
+    "Centralized multi-channel YouTube & Google Drive operations kit: encrypted OAuth vault, release/analytics SDK, CLI, and read-only MCP server.",
   )
-  .version("0.1.0")
-  .option("--vault-dir <dir>", "Override vault directory (defaults to YT_AUTH_HOME or ~/.yt-auth)");
+  .version("0.2.0")
+  .option("--vault-dir <dir>", "Override vault directory (defaults to YT_OPS_HOME, YT_AUTH_HOME, ~/.yt-ops, or ~/.yt-auth)");
 
 function vaultDirOf(): string | undefined {
   const opts = program.opts<{ vaultDir?: string }>();
@@ -489,6 +497,79 @@ ytCmd
       },
     );
     printJson(data);
+  });
+
+ytCmd
+  .command("health <alias> <videoIds...>")
+  .description("Check playability (processingStatus, P0D guard), privacy, and schedule for video IDs")
+  .option("--expected-channel <channelId>", "Channel ID guard")
+  .option("--workspace <workspace>", "Workspace guard")
+  .action(async (alias: string, videoIds: string[], opts) => {
+    const { youtube, account } = await getYouTubeClient(alias, {
+      vaultDir: vaultDirOf(),
+      expectedChannelId: opts.expectedChannel as string | undefined,
+      expectedWorkspace: opts.workspace as string | undefined,
+      requireWrite: false,
+      verifyLiveChannel: true,
+    });
+    const map = await fetchVideosHealth(youtube, videoIds);
+    const videos = videoIds.map((id) => {
+      const h = map.get(id);
+      if (!h) return { videoId: id, missing: true, playable: false };
+      const playable = isVideoPlayable(h);
+      return { ...h, playable, stuckReason: playable ? "" : getStuckReason(h) };
+    });
+    printJson({ alias: account.alias, channelId: account.channelId, videos });
+  });
+
+ytCmd
+  .command("seed-comment <alias> <videoId>")
+  .description("Post a top-level comment with deduplication (optional --park-unlisted for scheduled/private videos)")
+  .requiredOption("--text <text>", "Comment text to post")
+  .option("--park-unlisted", "Temporarily park a private/scheduled video as unlisted, post, and restore exact schedule")
+  .option("--dry-run", "Inspect without posting")
+  .option("--expected-channel <channelId>", "Channel ID guard")
+  .option("--workspace <workspace>", "Workspace guard")
+  .action(async (alias: string, videoId: string, opts) => {
+    const dryRun = Boolean(opts.dryRun);
+    const parkUnlisted = Boolean(opts.parkUnlisted);
+    const { youtube, account } = await getYouTubeClient(alias, {
+      vaultDir: vaultDirOf(),
+      expectedChannelId: opts.expectedChannel as string | undefined,
+      expectedWorkspace: opts.workspace as string | undefined,
+      requireWrite: !dryRun,
+      verifyLiveChannel: true,
+    });
+    const map = await fetchVideosHealth(youtube, [videoId]);
+    const h = map.get(videoId);
+    if (!h) throw new Error(`Video ${videoId} not found.`);
+    if (h.privacyStatus === "private" && parkUnlisted && !dryRun) {
+      const res = await parkUnlistedAndRun({
+        youtube,
+        videoId,
+        originalPrivacy: h.privacyStatus,
+        originalPublishAt: h.publishAt,
+        fn: () =>
+          seedCommentWithDedup({
+            youtube,
+            videoId,
+            channelId: account.channelId,
+            text: String(opts.text),
+            privacyStatus: "unlisted",
+          }),
+      });
+      printJson(res);
+    } else {
+      const res = await seedCommentWithDedup({
+        youtube,
+        videoId,
+        channelId: account.channelId,
+        text: String(opts.text),
+        privacyStatus: h.privacyStatus,
+        dryRun,
+      });
+      printJson(res);
+    }
   });
 
 // ============================================================================

@@ -1,19 +1,26 @@
-# `@schalkez/yt-auth`
+# `@schalkez/yt-ops`
 
-Centralized, **agent-first** YouTube Data API v3, YouTube Analytics API v2, and Google Drive OAuth vault — designed to consolidate scattered Google profiles, Brand Channels, and GCP projects across TypeScript, Go, and MCP-powered AI agents.
+*(Formerly `@schalkez/yt-auth` — 100% backward compatible with existing `~/.yt-auth` vaults and `yt-auth` CLI alias.)*
+
+Centralized, **agent-first** YouTube & Google Drive operations kit — combining an AES-256-GCM encrypted multi-channel OAuth vault, upload/caption/thumbnail helpers, release engineering primitives (`isVideoPlayable`, `seedCommentWithDedup`, `parkUnlistedAndRun`), Analytics lag guards (`evaluateAnalyticsFreshness`), CLI, TypeScript SDK, and read-only MCP server across `ai-video-studio`, `gafv`, `krillinAI`, and MCP-powered AI agents.
 
 ## Why
 
-- **One encrypted central vault (`~/.yt-auth/vault.enc.json`)**: AES-256-GCM encrypted at rest (key in `~/.yt-auth/master.key` or `YT_AUTH_MASTER_KEY`). Never scatter `refresh_token` across 5 different `.env` files or risk committing secrets.
+- **One encrypted central vault (`~/.yt-ops/vault.enc.json`, auto-fallback to `~/.yt-auth/vault.enc.json`)**: AES-256-GCM encrypted at rest (key in `master.key` or `YT_OPS_MASTER_KEY` / `YT_AUTH_MASTER_KEY`). Never scatter `refresh_token` across `.env` files or risk committing secrets.
 - **Permanent headless operation**: Authorize each Brand Channel **once** via loopback (`access_type=offline`, `prompt=consent`) on an **In production** Google Cloud OAuth client — every subsequent call auto-refreshes `access_token` indefinitely.
 - **Multi-client (multi-GCP project)**: Keep separate OAuth clients (`gafv`, `krillinai`, `studio`, ...) in one vault so daily 10,000-unit YouTube quotas stay isolated. Supports both `installed` (Desktop, ephemeral loopback port) and `web` (fixed callback URL) clients.
 - **Cross-channel & cross-profile safety guards**:
   - Enforces unique real `UC...` `channelId` per alias (blocks accidentally binding the same Brand Channel twice).
-  - SDK/CLI guards: `expectedChannelId`, `expectedWorkspace`, `requireWrite`, and `permission: "readonly" | "write"`.
+  - SDK/CLI guards: `expectedChannelId`, `expectedWorkspace`, `requireWrite`, `verifyLiveChannel`, and `permission: "readonly" | "write"`.
+- **Shared Release & Analytics Primitives (`src/release.ts`)**:
+  - `isVideoPlayable` / `fetchVideosHealth`: blocks promoting broken or `P0D` zero-length transcodes.
+  - `seedCommentWithDedup` & `parkUnlistedAndRun`: deduplicates top-level comments (1 unit vs 50) and safely parks private/scheduled videos unlisted with guaranteed `finally` schedule restore.
+  - `evaluateAnalyticsFreshness`: withholds 48–72h lagged Analytics AVD/AVP when view coverage `< 75%`.
+  - `uploadVideo`, `setVideoThumbnail`, `uploadCaptionTrack`: clean resumable upload, thumbnail (< 2 MB guard), and SRT/VTT caption helpers.
 - **Works across TS, Go, Shell, and AI Agents**:
-  - **Node/TS SDK**: `import { getYouTubeClient } from "@schalkez/yt-auth"`
-  - **CLI (JSON-first)**: `yt-auth token <alias> --json`, `yt-auth yt videos <alias>`, `yt-auth yt analytics <alias>`
-  - **Read-only MCP Server**: `yt-auth mcp` (safe global agent toolset for Antigravity / Claude Code / Cursor).
+  - **Node/TS SDK**: `import { getYouTubeClient, seedCommentWithDedup, parkUnlistedAndRun } from "@schalkez/yt-ops"`
+  - **CLI (JSON-first)**: `yt-ops yt health <alias> <id>`, `yt-ops yt seed-comment <alias> <id> --text "..."`, `yt-ops yt videos <alias>`, `yt-ops yt analytics <alias>` (`yt-auth` alias preserved)
+  - **Read-only MCP Server**: `yt-ops mcp` (safe global agent toolset including `yt_video_health` for Antigravity / Claude Code / Cursor).
 - **Zero-reauth importers**: Built-in read-only importers for `gafv` (`gavf.db`) and `krillinAI` (`krillinai.db` + `youtube_token_ch_*.json`).
 
 ---

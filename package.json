@@ -1,12 +1,12 @@
 {
-  "name": "@schalkez/yt-auth",
-  "version": "0.1.1",
-  "description": "Centralized multi-channel, multi-profile YouTube & Google Drive OAuth vault, CLI, TypeScript SDK, and read-only MCP server for agent-first workflows.",
+  "name": "@schalkez/yt-ops",
+  "version": "0.2.0",
+  "description": "Centralized multi-channel, multi-profile YouTube & Google Drive operations kit: encrypted OAuth vault, upload/release/analytics SDK, CLI, and read-only MCP server for agent-first workflows.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Schalkez/yt-auth.git"
+    "url": "https://github.com/Schalkez/yt-ops.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
@@ -20,6 +20,7 @@
     }
   },
   "bin": {
+    "yt-ops": "./dist/cli.js",
     "yt-auth": "./dist/cli.js"
   },
   "files": [

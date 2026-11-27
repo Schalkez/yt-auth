@@ -7,8 +7,10 @@ import {
   fetchAnalyticsReport,
   fetchChannelStats,
   fetchRecentVideos,
+  getYouTubeClient,
   listAccounts,
 } from "./sdk.js";
+import { fetchVideosHealth, getStuckReason, isVideoPlayable } from "./release.js";
 import { VaultStore } from "./vault.js";
 
 function jsonResult(data: unknown) {
@@ -32,8 +34,8 @@ function errorResult(err: unknown) {
  */
 export async function startMcpServer(options?: { vaultDir?: string }): Promise<void> {
   const server = new McpServer({
-    name: "yt-auth",
-    version: "0.1.0",
+    name: "yt-ops",
+    version: "0.2.0",
   });
 
   const vaultDir = options?.vaultDir;
@@ -162,6 +164,37 @@ export async function startMcpServer(options?: { vaultDir?: string }): Promise<v
           { vaultDir, expectedChannelId, expectedWorkspace },
         );
         return jsonResult(report);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "yt_video_health",
+    "Check YouTube video playability (processingStatus, P0D duration guard), privacyStatus, and publishAt schedule for 1-50 video IDs in a single 1-quota-unit call.",
+    {
+      alias: z.string().describe("Vault alias of the YouTube channel"),
+      videoIds: z.array(z.string()).min(1).max(50).describe("YouTube video IDs to inspect"),
+      expectedChannelId: z.string().optional().describe("Optional UC... channelId guard"),
+      expectedWorkspace: z.string().optional().describe("Optional workspace guard"),
+    },
+    async ({ alias, videoIds, expectedChannelId, expectedWorkspace }) => {
+      try {
+        const { youtube, account } = await getYouTubeClient(alias, {
+          vaultDir,
+          expectedChannelId,
+          expectedWorkspace,
+          requireWrite: false,
+        });
+        const healthMap = await fetchVideosHealth(youtube, videoIds);
+        const videos = videoIds.map((id) => {
+          const h = healthMap.get(id);
+          if (!h) return { videoId: id, missing: true, playable: false };
+          const playable = isVideoPlayable(h);
+          return { ...h, playable, stuckReason: playable ? "" : getStuckReason(h) };
+        });
+        return jsonResult({ alias: account.alias, channelId: account.channelId, videos });
       } catch (err) {
         return errorResult(err);
       }

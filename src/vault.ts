@@ -24,11 +24,19 @@ export function resolveVaultDir(overrideDir?: string): string {
   if (overrideDir && overrideDir.trim().length > 0) {
     return path.resolve(overrideDir.trim());
   }
-  const fromEnv = process.env["YT_AUTH_HOME"]?.trim();
+  const fromEnv = (process.env["YT_OPS_HOME"] ?? process.env["YT_AUTH_HOME"])?.trim();
   if (fromEnv && fromEnv.length > 0) {
     return path.resolve(fromEnv);
   }
-  return path.join(os.homedir(), ".yt-auth");
+  const opsDir = path.join(os.homedir(), ".yt-ops");
+  const legacyDir = path.join(os.homedir(), ".yt-auth");
+  if (fs.existsSync(path.join(opsDir, VAULT_FILENAME))) {
+    return opsDir;
+  }
+  if (fs.existsSync(path.join(legacyDir, VAULT_FILENAME))) {
+    return legacyDir;
+  }
+  return opsDir;
 }
 
 function emptyVault(): VaultData {
